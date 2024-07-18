@@ -29,28 +29,50 @@ class NotificationManager {
             notifs.data.notifications.filter { !it.isRead && it.reason == "mention" }
                 .forEach { notif ->
                     val feedpost = notif.record.asFeedPost
-                    if (feedpost?.text?.matches() == true) {
-                        //fetch person
-                        //run attack
-                        val result = attacks.handleAttack("test")
-                        //post result
-                        BlueskyFactory
-                            .instance(Service.BSKY_SOCIAL.uri)
-                            .feed().post(FeedPostRequest(response.data.accessJwt).also { it.text = result
-                                it.reply = feedpost.reply
-                            })
+                    if (feedpost?.text?.matches(helpRegex) == true) {
+                        handleHelp(token)
                     }
+                    else if (feedpost?.text?.matches(attackRegex) == true) {
+                        handleAttack(token)
+                    }
+                    else if (feedpost?.text?.matches(legionRegex) == true) {
+                        val legion = legionRegex.find(feedpost.text!!)?.groupValues?.last()?:""
+                        if(legion.isBlank()){
+                            handleLegionNotFound(token)
+                        }else {
+                            handleLegion(token,)
+                        }
+                    }
+
                     println("${notif.reason} ${notif.author.handle} ${feedpost?.text}")
-                    BlueskyFactory
-                        .instance(Service.BSKY_SOCIAL.uri)
-                        .notification()
-                        .updateSeen(NotificationUpdateSeenRequest(response.data.accessJwt).also {
-                            it.seenAt = Clock.System.now().toString()
-                        })
+
                 }
-        }catch (throwable:Throwable){
+            BlueskyFactory
+                .instance(Service.BSKY_SOCIAL.uri)
+                .notification()
+                .updateSeen(NotificationUpdateSeenRequest(token).also {
+                    it.seenAt = Clock.System.now().toString()
+                })
+        } catch (throwable: Throwable) {
             println(throwable.toString())
         }
+    }
+
+    private fun handleHelp(token: String) {
+
+    }
+
+    fun handleAttack(token: String) {
+        //fetch person
+        //run attack
+        val result = attacks.handleAttack("test")
+        //post result
+        BlueskyFactory
+            .instance(Service.BSKY_SOCIAL.uri)
+            .feed().post(FeedPostRequest(response.data.accessJwt).also {
+                it.text = result
+                it.reply = feedpost.reply
+            })
     }
 
 }
