@@ -1,11 +1,15 @@
 package com.warlabel
 
 import kotlinx.datetime.Clock
+import org.example.com.warlabel.Attacks
 import work.socialhub.kbsky.BlueskyFactory
 import work.socialhub.kbsky.api.entity.app.bsky.feed.FeedPostRequest
 import work.socialhub.kbsky.api.entity.app.bsky.notification.NotificationListNotificationsRequest
 import work.socialhub.kbsky.api.entity.app.bsky.notification.NotificationUpdateSeenRequest
 import work.socialhub.kbsky.domain.Service
+import work.socialhub.kbsky.model.app.bsky.feed.FeedPost
+import work.socialhub.kbsky.model.app.bsky.feed.FeedPostReplyRef
+import work.socialhub.kbsky.model.com.atproto.repo.RepoStrongRef
 
 class NotificationManager {
     private var legionRegex: Regex
@@ -30,17 +34,15 @@ class NotificationManager {
                 .forEach { notif ->
                     val feedpost = notif.record.asFeedPost
                     if (feedpost?.text?.matches(helpRegex) == true) {
-                        handleHelp(token)
-                    }
-                    else if (feedpost?.text?.matches(attackRegex) == true) {
+                        handleHelp(token, notif.uri, notif.cid)
+                    } else if (feedpost?.text?.matches(attackRegex) == true) {
                         handleAttack(token)
-                    }
-                    else if (feedpost?.text?.matches(legionRegex) == true) {
-                        val legion = legionRegex.find(feedpost.text!!)?.groupValues?.last()?:""
-                        if(legion.isBlank()){
+                    } else if (feedpost?.text?.matches(legionRegex) == true) {
+                        val legion = legionRegex.find(feedpost.text!!)?.groupValues?.last() ?: ""
+                        if (legion.isBlank()) {
                             handleLegionNotFound(token)
-                        }else {
-                            handleLegion(token,)
+                        } else {
+                            handleLegion(token)
                         }
                     }
 
@@ -58,21 +60,40 @@ class NotificationManager {
         }
     }
 
-    private fun handleHelp(token: String) {
+    private fun handleLegion(token: String) {
+        TODO("Not yet implemented")
+    }
 
+    private fun handleLegionNotFound(token: String) {
+        TODO("Not yet implemented")
+    }
+
+    private fun handleHelp(token: String, uri: String, cid: String) {
+        BlueskyFactory
+            .instance(Service.BSKY_SOCIAL.uri)
+            .feed().post(FeedPostRequest(token).also {
+                it.text = "Commands:\nhelp: this menu"
+                it.reply = FeedPostReplyRef().also {
+                    it.root = RepoStrongRef(uri, cid)
+                    it.parent = RepoStrongRef(uri, cid)
+                }
+            })
     }
 
     fun handleAttack(token: String) {
         //fetch person
         //run attack
+        val attacks = Attacks()
         val result = attacks.handleAttack("test")
         //post result
-        BlueskyFactory
-            .instance(Service.BSKY_SOCIAL.uri)
-            .feed().post(FeedPostRequest(response.data.accessJwt).also {
-                it.text = result
-                it.reply = feedpost.reply
-            })
+//        BlueskyFactory
+//            .instance(Service.BSKY_SOCIAL.uri)
+//            .feed().post(FeedPostRequest(token).also {
+//                it.text = result
+//                it.reply = FeedPostReplyRef().also {
+//                    it.root
+//                }
+//            })
     }
 
 }
