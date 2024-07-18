@@ -24,7 +24,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-json:0.52.0")
     implementation("org.jetbrains.exposed:exposed-money:0.52.0")
     implementation("org.jetbrains.exposed:exposed-spring-boot-starter:0.52.0")
-    implementation("com.h2database:h2:1.3.148")
+    implementation("com.h2database:h2:2.2.220")
 
 }
 

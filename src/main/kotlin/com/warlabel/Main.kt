@@ -1,5 +1,6 @@
 package org.example
 
+import com.warlabel.NotificationManager
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -9,15 +10,19 @@ import okhttp3.Response
 import work.socialhub.kbsky.BlueskyFactory
 import work.socialhub.kbsky.api.entity.app.bsky.feed.FeedGetLikesRequest
 import work.socialhub.kbsky.api.entity.com.atproto.server.ServerCreateSessionRequest
+import work.socialhub.kbsky.api.entity.share.AuthRequest
 import work.socialhub.kbsky.domain.Service
 import work.socialhub.kbsky.model.app.bsky.feed.FeedGetLikesLike
 import java.io.File
 import java.io.IOException
+import java.time.Instant
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 
 fun main() {
-    val response = BlueskyFactory
+    val tokens = BlueskyFactory
         .instance(Service.BSKY_SOCIAL.uri)
         .server()
         .createSession(
@@ -26,44 +31,71 @@ fun main() {
                 it.password = "TVR6vhu!rnj5tnc@gut"
             }
         )
+    var token = tokens.data.accessJwt
+    var refresh = tokens.data.refreshJwt
+    var lastRefresh = System.currentTimeMillis()
+    val notificationManager = NotificationManager()
 
-    println("Logged in: ${response.data.accessJwt}")
-    var cursor: String? = null
-    val likes = File("users.txt").useLines { it.toMutableList() }
+//    println("Logged in: ${response.data.accessJwt}")
+//    var cursor: String? = null
+//    val likes = File("users.txt").useLines { it.toMutableList() }
 
     while (true) {
-        try {
 
-
-            val likesResponse = BlueskyFactory
+        val now = System.currentTimeMillis()
+        if (now - lastRefresh >= 5.minutes.inWholeMilliseconds) {
+            //do refresh
+            val refreshed = BlueskyFactory
                 .instance(Service.BSKY_SOCIAL.uri)
-                .feed()
-                .getLikes(FeedGetLikesRequest(response.data.accessJwt).also {
-                    it.uri = "at://did:plc:mpogduvvraozdcbp6w2lafqg/app.bsky.labeler.service/self"
-                    it.limit = 50
-                    it.cursor = cursor
-                }
+                .server()
+                .refreshSession(
+                    AuthRequest(refresh)
                 )
-
-            cursor = likesResponse.data.cursor
-            likesResponse.data.likes.forEach { like: FeedGetLikesLike ->
-                val did = like.actor.did
-                if (!likes.contains(did)) {
-                    //add to list
-                    likes.add(did)
-                    // determine labels
-                    val legion = Random.nextInt(0, 18)
-                    //Apply labels
-                    applyLabel(legion, did, response.data.accessJwt)
-                    File("users.txt").appendText(did + "\r\n")
-                }
-            }
-            println("Num Likes: ${likes.size}")
-        } catch (throwable: Throwable) {
-            println(throwable)
+            token = refreshed.data.accessJwt
+            refresh = refreshed.data.refreshJwt
+            lastRefresh = now
+            println(Instant.now().toString() + " Refreshed token")
         }
+        try{
+            notificationManager.fetchAndProcess(token)
+
+        }catch (throwable:Throwable){
+            println(throwable.toString())
+        }
+
         Thread.sleep(5000)
     }
+//        try {
+//
+//            val likesResponse = BlueskyFactory
+//                .instance(Service.BSKY_SOCIAL.uri)
+//                .feed()
+//                .getLikes(FeedGetLikesRequest(response.data.accessJwt).also {
+//                    it.uri = "at://did:plc:mpogduvvraozdcbp6w2lafqg/app.bsky.labeler.service/self"
+//                    it.limit = 50
+//                    it.cursor = cursor
+//                }
+//                )
+//
+//            cursor = likesResponse.data.cursor
+//            likesResponse.data.likes.forEach { like: FeedGetLikesLike ->
+//                val did = like.actor.did
+//                if (!likes.contains(did)) {
+//                    //add to list
+//                    likes.add(did)
+//                    // determine labels
+//                    val legion = Random.nextInt(0, 18)
+//                    //Apply labels
+//                    applyLabel(legion, did, response.data.accessJwt)
+//                    File("users.txt").appendText(did + "\r\n")
+//                }
+//            }
+//            println("Num Likes: ${likes.size}")
+//        } catch (throwable: Throwable) {
+//            println(throwable)
+//        }
+//        Thread.sleep(5000)
+//    }
 }
 
 fun applyLabel(legion: Int, did: String, token: String) {
