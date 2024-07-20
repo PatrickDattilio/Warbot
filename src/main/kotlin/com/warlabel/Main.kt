@@ -1,24 +1,16 @@
-package org.example
+package com.warlabel
 
-import com.warlabel.NotificationManager
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 import work.socialhub.kbsky.BlueskyFactory
-import work.socialhub.kbsky.api.entity.app.bsky.feed.FeedGetLikesRequest
 import work.socialhub.kbsky.api.entity.com.atproto.server.ServerCreateSessionRequest
 import work.socialhub.kbsky.api.entity.share.AuthRequest
 import work.socialhub.kbsky.domain.Service
-import work.socialhub.kbsky.model.app.bsky.feed.FeedGetLikesLike
-import java.io.File
 import java.io.IOException
 import java.time.Instant
-import kotlin.random.Random
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
 
 fun main() {

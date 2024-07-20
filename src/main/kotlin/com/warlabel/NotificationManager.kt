@@ -1,7 +1,6 @@
 package com.warlabel
 
 import kotlinx.datetime.Clock
-import org.example.com.warlabel.Attacks
 import work.socialhub.kbsky.BlueskyFactory
 import work.socialhub.kbsky.api.entity.app.bsky.feed.FeedPostRequest
 import work.socialhub.kbsky.api.entity.app.bsky.notification.NotificationListNotificationsRequest

@@ -1,14 +1,12 @@
-package org.example.com.warlabel
+package com.warlabel
 
 import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import work.socialhub.kbsky.BlueskyFactory
 import work.socialhub.kbsky.api.entity.app.bsky.feed.FeedPostRequest
 import work.socialhub.kbsky.api.entity.app.bsky.notification.NotificationListNotificationsRequest
 import work.socialhub.kbsky.api.entity.app.bsky.notification.NotificationUpdateSeenRequest
 import work.socialhub.kbsky.api.entity.com.atproto.server.ServerCreateSessionRequest
 import work.socialhub.kbsky.domain.Service
-import work.socialhub.kbsky.model.app.bsky.feed.FeedPostReplyRef
 import kotlin.random.Random
 
 class Attacks {
