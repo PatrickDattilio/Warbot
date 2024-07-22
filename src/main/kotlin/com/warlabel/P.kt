@@ -21,7 +21,7 @@ object Chapter : Table() {
 }
 
 fun main() {
-    Database.connect("jdbc:h2:file:./warbot", driver = "org.h2.Driver", user = "root", password = "")
+    Database.connect("jdbc:h2:file:./warbot;AUTO_SERVER=TRUE", driver = "org.h2.Driver", user = "root", password = "")
 
     transaction {
         addLogger(StdOutSqlLogger)
