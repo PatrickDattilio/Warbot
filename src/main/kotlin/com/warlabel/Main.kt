@@ -1,57 +1,21 @@
 package com.warlabel
 
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import work.socialhub.kbsky.BlueskyFactory
-import work.socialhub.kbsky.api.entity.com.atproto.server.ServerCreateSessionRequest
-import work.socialhub.kbsky.api.entity.share.AuthRequest
-import work.socialhub.kbsky.domain.Service
-import java.io.IOException
-import java.time.Instant
-import kotlin.time.Duration.Companion.minutes
+import org.jetbrains.exposed.sql.Database
 
 
 fun main() {
-    val tokens = BlueskyFactory
-        .instance(Service.BSKY_SOCIAL.uri)
-        .server()
-        .createSession(
-            ServerCreateSessionRequest().also {
-                it.identifier = "wlabelapi.bsky.social"
-                it.password = "XQJ!hud-gup7kgn.mxe"
-            }
-        )
-    var token = tokens.data.accessJwt
-    var refresh = tokens.data.refreshJwt
-    var lastRefresh = System.currentTimeMillis()
+    val tokenManager = TokenManager("wlabelapi.bsky.social","XQJ!hud-gup7kgn.mxe")
+    val labelerTokenManger = TokenManager("warlabel.bsky.social", "TVR6vhu!rnj5tnc@gut")
     val notificationManager = NotificationManager()
-    val likeManager = LikeManager()
-
+    val likeManager = LikeManager(tokenManager, labelerTokenManger)
+    Database.connect("jdbc:h2:file:./warbot", driver = "org.h2.Driver", user = "root", password = "")
     while (true) {
-
-        val now = System.currentTimeMillis()
-        if (now - lastRefresh >= 5.minutes.inWholeMilliseconds) {
-            //do refresh
-            val refreshed = BlueskyFactory
-                .instance(Service.BSKY_SOCIAL.uri)
-                .server()
-                .refreshSession(
-                    AuthRequest(refresh)
-                )
-            token = refreshed.data.accessJwt
-            refresh = refreshed.data.refreshJwt
-            lastRefresh = now
-            println(Instant.now().toString() + " Refreshed token")
-        }
         try{
-            notificationManager.fetchAndProcess(token)
-            likeManager.fetchAndProcess(token)
+            notificationManager.fetchAndProcess(tokenManager.getToken())
+            likeManager.fetchAndProcess(tokenManager.getToken())
         }catch (throwable:Throwable){
             println(throwable.toString())
         }
-
         Thread.sleep(5000)
     }
 }

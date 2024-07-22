@@ -6,15 +6,19 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import work.socialhub.kbsky.BlueskyFactory
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
 import work.socialhub.kbsky.api.entity.app.bsky.feed.FeedGetLikesResponse
 import work.socialhub.kbsky.model.app.bsky.feed.FeedGetLikesLike
 import java.io.IOException
+import kotlin.random.Random
 
-class LikeManager {
+class LikeManager(val tokenManager: TokenManager, val labelerTokenManger: TokenManager) {
 
 
-    fun applyLabel(legion: Int, did: String, token: String) {
+    fun applyLabel(legion: Int, did: String, token: String): String {
 
         val MEDIA_TYPE = "application/json".toMediaType()
 
@@ -61,13 +65,14 @@ class LikeManager {
             if (!response.isSuccessful) throw IOException("Unexpected code $response")
             response.body!!.string()
         }
+        return label
     }
 
     fun fetchAndProcess(token: String) {
         try {
             val client = OkHttpClient().newBuilder()
                 .build()
-            var cursor :String?= ""
+            var cursor: String? = ""
             do {
                 val request = Request.Builder()
                     .url("https://maitake.us-west.host.bsky.network/xrpc/app.bsky.feed.getLikes?uri=at://did:plc:mpogduvvraozdcbp6w2lafqg/app.bsky.labeler.service/self$cursor")
@@ -82,8 +87,9 @@ class LikeManager {
                 val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
                 val adapter = moshi.adapter(FeedGetLikesResponse::class.java)
                 val likeResponse = adapter.fromJson(response.body!!.source())
-//                processLikes(likeResponse?.likes)
-                cursor = likeResponse?.cursor
+                response.close()
+                processLikes(likeResponse!!.likes)
+                cursor = likeResponse.cursor
                 cursor = if (cursor == null) {
                     ""
                 } else {
@@ -91,33 +97,41 @@ class LikeManager {
                 }
             } while (cursor?.isNotBlank() == true)
 
-
-//            val likesResponse = BlueskyFactory
-//                .instance(Service.BSKY_SOCIAL.uri)
-//                .feed()
-//                .getLikes(FeedGetLikesRequest(response.data.accessJwt).also {
-//                    it.uri = "at://did:plc:mpogduvvraozdcbp6w2lafqg/app.bsky.labeler.service/self"
-//                    it.limit = 50
-//                    it.cursor = cursor
-//                }
-//                )
-//
-//            cursor = likesResponse.data.cursor
-//            likesResponse.data.likes.forEach { like: FeedGetLikesLike ->
-//                val did = like.actor.did
-//                if (!likes.contains(did)) {
-//                    //add to list
-//                    likes.add(did)
-//                    // determine labels
-//                    val legion = Random.nextInt(0, 18)
-//                    //Apply labels
-//                    applyLabel(legion, did, response.data.accessJwt)
-//                    File("users.txt").appendText(did + "\r\n")
-//                }
-//            }
-//            println("Num Likes: ${likes.size}")
         } catch (throwable: Throwable) {
             println(throwable)
         }
     }
+
+    private fun processLikes(likes: List<FeedGetLikesLike>) {
+        likes.forEach { like ->
+            val user = like.actor
+            val userDid = like.actor.did
+            transaction {
+                val dbUser = Player.selectAll().where(Player.did.eq(userDid)).firstOrNull()
+                if (dbUser != null) {
+                    // We good
+                } else {
+                    var hasLabel = false
+                    var label = ""
+                    user.labels?.forEach { serverLabel ->
+                        if (serverLabel.`val` != "firstborn"  && serverLabel.src == "did:plc:mpogduvvraozdcbp6w2lafqg") {
+                            label = serverLabel.`val`!!
+                            hasLabel = true
+                        }
+                    }
+                    if (!hasLabel) {
+                         label = applyLabel(Random.nextInt(0, 18), userDid, labelerTokenManger.getToken())
+                    }
+                    Player.insert {
+                        it[did] = userDid
+                        it[name] = user.handle
+                        it[tag] = label
+                    }
+
+                }
+            }
+        }
+
+    }
+
 }
