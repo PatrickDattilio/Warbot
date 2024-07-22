@@ -6,7 +6,7 @@ import org.jetbrains.exposed.sql.Database
 fun main() {
     val tokenManager = TokenManager("wlabelapi.bsky.social","XQJ!hud-gup7kgn.mxe")
     val labelerTokenManger = TokenManager("warlabel.bsky.social", "TVR6vhu!rnj5tnc@gut")
-    val notificationManager = NotificationManager(labelerTokenManger)
+    val notificationManager = NotificationManager(tokenManager,labelerTokenManger)
     val likeManager = LikeManager(tokenManager, labelerTokenManger)
     Database.connect("jdbc:h2:file:./warbot;AUTO_SERVER=TRUE", driver = "org.h2.Driver", user = "root", password = "")
     while (true) {
