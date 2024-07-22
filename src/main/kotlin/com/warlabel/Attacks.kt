@@ -1,16 +1,10 @@
 package com.warlabel
 
-import kotlinx.datetime.Clock
-import work.socialhub.kbsky.BlueskyFactory
-import work.socialhub.kbsky.api.entity.app.bsky.feed.FeedPostRequest
-import work.socialhub.kbsky.api.entity.app.bsky.notification.NotificationListNotificationsRequest
-import work.socialhub.kbsky.api.entity.app.bsky.notification.NotificationUpdateSeenRequest
-import work.socialhub.kbsky.api.entity.com.atproto.server.ServerCreateSessionRequest
-import work.socialhub.kbsky.domain.Service
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.transactions.transaction
 import kotlin.random.Random
 
-class Attacks {
-
+class Attacks{
 
     private fun d6(): Int {
         return Random.nextInt(1, 6)
@@ -93,12 +87,14 @@ class Attacks {
     }
 
     fun handleAttack(attackerDid: String, label: String): String {
-        val leader = if (isLoyalist(label)) {
+        val defenderDid = "enemy"
+        val isLoyalist = isLoyalist(label)
+        val leader = if (isLoyalist) {
             "Emperor"
         } else {
             "Warmaster"
         }
-        val intro = "You see a traitor to the $leader attempting to sneak up on your squad.\n"
+        val intro = getIntro(leader)
         val hit = d6()
         val toHit = d3()
         val attack = "You fire your bolter at the enemy!\n"
@@ -109,21 +105,54 @@ class Attacks {
         val wouldRollText = "[$hit/$toHit] "
         val wound = woundRoll(woundRoll, toWound)
         val savingThrowRoll = d6()
-        val savingThrow = ""
-        insertAttackToDb(attackerDid, label, hit, toHit, wound, toWound, savingThrowRoll)
+        val savingThrow = savingThrowRoll(savingThrowRoll)
+        val damage = if(savingThrowRoll==6) 0 else 1
+        insertAttackToDb(attackerDid, defenderDid,label, hit, toHit, woundRoll, toWound, savingThrowRoll, damage)
         return intro + attack + roll + hitResult + wouldRollText + wound + savingThrow
 
     }
 
+    private fun getIntro(leader:String): String {
+         val intros:List<String> = listOf(
+            "You see a traitor to the $leader attempting to sneak up on your squad.\n",
+             "You spy a lone scout out on patrol. You begin firing screaming 'For the $leader!\n"
+        )
+        return intros[Random.nextInt(0,intros.lastIndex)]
+
+    }
+
+    private fun savingThrowRoll(savingThrowRoll: Int): String {
+        return if(savingThrowRoll == 6){
+            "By some miracle the blow delivers no damage!\n"
+        }else{
+            "You apply one wound.\n"
+        }
+    }
+
     private fun insertAttackToDb(
         attackerDid: String,
+        defenderDid: String,
         label: String,
         hit: Int,
         toHit: Int,
-        wound: String,
+        wound: Int,
         toWound: Int,
-        savingThrowRoll: Int
+        savingThrowRoll: Int,
+        damage: Int
     ) {
+        transaction {
+            Attack.insert {
+                it[Attack.attackerDid] = attackerDid
+                it[Attack.defenderDid] = defenderDid
+                it[Attack.label] = label
+                it[Attack.hit] = hit
+                it[Attack.toHit] = toHit
+                it[Attack.wound] = wound
+                it[Attack.toWound] = toWound
+                it[Attack.savingThrowRoll] = savingThrowRoll
+                it[Attack.damage] = damage
+            }
+        }
 
     }
 
@@ -148,50 +177,3 @@ class Attacks {
     }
 
 }
-//
-//fun main() {
-//    val attacks = Attacks()
-//    val response = BlueskyFactory
-//        .instance(Service.BSKY_SOCIAL.uri)
-//        .server()
-//        .createSession(
-//            ServerCreateSessionRequest().also {
-//                it.identifier = "warlabel.bsky.social"
-//                it.password = "TVR6vhu!rnj5tnc@gut"
-//            }
-//        )
-//    while (true) {
-//
-//        val notifs = BlueskyFactory
-//            .instance(Service.BSKY_SOCIAL.uri)
-//            .notification()
-//            .listNotifications(
-//                NotificationListNotificationsRequest(response.data.accessJwt)
-//            )
-//
-//        notifs.data.notifications.filter { !it.isRead && it.reason == "mention" }
-//            .forEach { notif ->
-//                val feedpost = notif.record.asFeedPost
-//                if (feedpost?.text?.matches(Regex.fromLiteral("@warlabel.bsky.social attack")) == true) {
-//                    //fetch person
-//                    //run attack
-//                    val result = attacks.handleAttack("test")
-//                    //post result
-//                    BlueskyFactory
-//                        .instance(Service.BSKY_SOCIAL.uri)
-//                        .feed().post(FeedPostRequest(response.data.accessJwt).also {
-//                            it.text = result
-//                            it.reply = feedpost.reply
-//                        })
-//                }
-//                println("${notif.reason} ${notif.author.handle} ${feedpost?.text}")
-//                BlueskyFactory
-//                    .instance(Service.BSKY_SOCIAL.uri)
-//                    .notification()
-//                    .updateSeen(NotificationUpdateSeenRequest(response.data.accessJwt).also {
-//                        it.seenAt = Clock.System.now().toString()
-//                    })
-//            }
-//    }
-//
-//}

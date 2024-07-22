@@ -110,7 +110,9 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
             .instance(Service.BSKY_SOCIAL.uri)
             .feed().post(FeedPostRequest(labelerTokenManager.getToken()).also {
                 it.text =
-                    "Commands:\nhelp: this menu\nlegions: list all valid legion tags for legion command\nlegion <tag>: list battle brothers of the given legion tag"
+                    "Commands:\nhelp: this menu\nlegions: list all valid legion tags for legion command\n" +
+                            "legion <tag>: list battle brothers of the given legion tag\n" +
+                            "attack: find an enemy astartes and attack them!"
                 it.reply = FeedPostReplyRef().also {
                     it.root = RepoStrongRef(uri, cid)
                     it.parent = RepoStrongRef(uri, cid)

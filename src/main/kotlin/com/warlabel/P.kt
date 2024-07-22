@@ -1,5 +1,6 @@
 package com.warlabel
 
+import com.warlabel.Player.autoIncrement
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -11,6 +12,19 @@ object Player : Table() {
     val tag: Column<String> = varchar("tag", length = 50)
     val did: Column<String> = varchar("did", length = 50)
 //    val isLoyalist: Column<Boolean> = bool("chapter_loyalist") references Chapter.loyalist
+}
+
+object Attack: Table(){
+    val id: Column<Int> = integer("id").autoIncrement()
+    val attackerDid:Column<String> = varchar("attacker_did", length = 50)
+    val defenderDid:Column<String> = varchar("defender_did", length = 50)
+    val label:Column<String> = varchar("tag", length = 50)
+    val hit: Column<Int> = integer("hit")
+    val toHit: Column<Int> = integer("to_hit")
+    val wound: Column<Int> = integer("wound")
+    val toWound: Column<Int> = integer("to_wound")
+    val savingThrowRoll: Column<Int> = integer("saving_throw")
+    val damage: Column<Int> = integer("damage")
 }
 
 object Chapter : Table() {
@@ -26,7 +40,7 @@ fun main() {
     transaction {
         addLogger(StdOutSqlLogger)
 
-        SchemaUtils.create( Player)
+        SchemaUtils.create( Attack)
 //
 //        Chapter.insert {
 //            it[id] = 0
