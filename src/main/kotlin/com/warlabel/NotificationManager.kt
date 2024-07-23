@@ -2,6 +2,8 @@ package com.warlabel
 
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import work.socialhub.kbsky.BlueskyFactory
@@ -14,10 +16,11 @@ import work.socialhub.kbsky.model.app.bsky.feed.FeedPostReplyRef
 import work.socialhub.kbsky.model.com.atproto.repo.RepoStrongRef
 
 class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager: TokenManager) {
-    private var legionsRegex: Regex
-    private var legionRegex: Regex
-    private var helpRegex: Regex
-    private var attackRegex: Regex
+    private val legionsRegex: Regex
+    private val legionRegex: Regex
+    private val helpRegex: Regex
+    private val attackRegex: Regex
+    private val statusRegex: Regex
     private var lastCursor: String? = null
 
     init {
@@ -25,6 +28,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
         helpRegex = Regex("@warlabel.bsky.social help")
         legionRegex = Regex("@warlabel.bsky.social legion (.*)")
         legionsRegex = Regex("@warlabel.bsky.social legions")
+        statusRegex = Regex("@warlabel.bsky.social status")
     }
 
     fun fetchAndProcess() {
@@ -48,6 +52,8 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                         handleHelp(labelerTokenManager.getToken(), notif.uri, notif.cid)
                     } else if (feedpost?.text?.matches(attackRegex) == true) {
                         handleAttack(notif.author, notif.uri, notif.cid)
+                    } else if (feedpost?.text?.matches(statusRegex) == true) {
+                        handleStatus(notif.uri, notif.cid)
                     } else if (feedpost?.text?.matches(legionsRegex) == true) {
                         handleLegionEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid)
                     } else if (feedpost?.text?.matches(legionRegex) == true) {
@@ -70,6 +76,24 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
         } catch (throwable: Throwable) {
             println(throwable.toString())
         }
+    }
+
+    private fun handleStatus(uri: String, cid: String) {
+
+
+        val imperium = transaction {  Attack.selectAll().where(Attack.isLoyalist.eq(true).and(Attack.damage.greaterEq(1))).toList()}
+        val warmaster =  transaction { Attack.selectAll().where(Attack.isLoyalist.eq(false).and(Attack.damage.greaterEq(1))).toList()}
+        val response = "Fallen Astartes of the Imperium: ${warmaster.size}\nFallen Astartes of the Warmaster: ${imperium.size}"
+
+        BlueskyFactory
+            .instance(Service.BSKY_SOCIAL.uri)
+            .feed().post(FeedPostRequest(labelerTokenManager.getToken()).also {
+                it.text = response
+                it.reply = FeedPostReplyRef().also {
+                    it.root = RepoStrongRef(uri, cid)
+                    it.parent = RepoStrongRef(uri, cid)
+                }
+            })
     }
 
     private fun handleLegion(token: String, uri: String, cid: String, legion: String) {
@@ -112,7 +136,8 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                 it.text =
                     "Commands:\nhelp: this menu\nlegions: list all valid legion tags for legion command\n" +
                             "legion <tag>: list battle brothers of the given legion tag\n" +
-                            "attack: find an enemy astartes and attack them!"
+                            "attack: find an enemy astartes and attack them!\n" +
+                            "status: a summary of the war effort! For Glory!"
                 it.reply = FeedPostReplyRef().also {
                     it.root = RepoStrongRef(uri, cid)
                     it.parent = RepoStrongRef(uri, cid)

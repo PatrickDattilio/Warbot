@@ -107,7 +107,7 @@ class Attacks{
         val savingThrowRoll = d6()
         val savingThrow = savingThrowRoll(savingThrowRoll)
         val damage = if(savingThrowRoll==6) 0 else 1
-        insertAttackToDb(attackerDid, defenderDid,label, hit, toHit, woundRoll, toWound, savingThrowRoll, damage)
+        insertAttackToDb(attackerDid, defenderDid,label, hit, toHit, woundRoll, toWound, savingThrowRoll, damage, isLoyalist)
         return intro + attack + roll + hitResult + wouldRollText + wound + savingThrow
 
     }
@@ -138,7 +138,8 @@ class Attacks{
         wound: Int,
         toWound: Int,
         savingThrowRoll: Int,
-        damage: Int
+        damage: Int,
+        isLoyalist: Boolean
     ) {
         transaction {
             Attack.insert {
@@ -151,6 +152,7 @@ class Attacks{
                 it[Attack.toWound] = toWound
                 it[Attack.savingThrowRoll] = savingThrowRoll
                 it[Attack.damage] = damage
+                it[Attack.isLoyalist] = isLoyalist
             }
         }
 

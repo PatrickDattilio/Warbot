@@ -2,6 +2,8 @@ package com.warlabel
 
 import com.warlabel.Player.autoIncrement
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.transactions.transaction
 
 
@@ -25,6 +27,7 @@ object Attack: Table(){
     val toWound: Column<Int> = integer("to_wound")
     val savingThrowRoll: Column<Int> = integer("saving_throw")
     val damage: Column<Int> = integer("damage")
+    val isLoyalist: Column<Boolean> = bool("is_loyalist")
 }
 
 object Chapter : Table() {
@@ -39,8 +42,9 @@ fun main() {
 
     transaction {
         addLogger(StdOutSqlLogger)
+//        SchemaUtils.drop(Attack)
+//        SchemaUtils.create(Attack)
 
-        SchemaUtils.create( Attack)
 //
 //        Chapter.insert {
 //            it[id] = 0
@@ -61,6 +65,10 @@ fun main() {
         val players = Player.selectAll()
         val what = Player.selectAll().execute(this)
         println("Players: ${Player.selectAll()}")
+        val imperium =  Attack.selectAll().where(Attack.isLoyalist.eq(true).and(Attack.damage.greaterEq(1))) .toList()
+        println("Imperium: "+ imperium.count())
+        val warmaster = Attack.selectAll().where(Attack.isLoyalist.eq(false).and(Attack.damage.greaterEq(1))) .toList()
+        println("Warmaster: "+ warmaster.count())
     }
 }
 
