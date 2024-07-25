@@ -30,7 +30,7 @@ class TokenManager(val username: String, val password: String) {
         _token = refreshed.data.accessJwt
         _refresh = refreshed.data.refreshJwt
         lastRefresh = now
-        println(Instant.now().toString() + " Refreshed token")
+//        println(Instant.now().toString() + " Refreshed token")
         return _token!!
     }
 

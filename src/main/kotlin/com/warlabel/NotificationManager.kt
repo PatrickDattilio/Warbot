@@ -1,6 +1,7 @@
 package com.warlabel
 
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.and
@@ -47,7 +48,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
             notifs.data.notifications.filter { !it.isRead && it.reason == "mention" }
                 .forEach { notif ->
                     val feedpost = notif.record.asFeedPost
-                    println("${notif.reason} ${notif.author.handle} ${feedpost?.text}")
+                    println("${Clock.System.now()}  ${notif.reason} ${notif.author.handle} ${feedpost?.text}")
                     if (feedpost?.text?.matches(helpRegex) == true) {
                         handleHelp(labelerTokenManager.getToken(), notif.uri, notif.cid)
                     } else if (feedpost?.text?.matches(attackRegex) == true) {
@@ -65,7 +66,6 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                         }
                     }
 
-                    println("${notif.reason} ${notif.author.handle} ${feedpost?.text}")
                     BlueskyFactory
                         .instance(Service.BSKY_SOCIAL.uri)
                         .notification()
