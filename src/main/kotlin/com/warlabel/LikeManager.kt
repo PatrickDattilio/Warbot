@@ -2,6 +2,7 @@ package com.warlabel
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlinx.datetime.Clock
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -45,7 +46,7 @@ class LikeManager(val tokenManager: TokenManager, val labelerTokenManger: TokenM
             else -> throw Throwable("Bad legion value: $legion")
         }
         val firstbornLabel = "\"firstborn\",\"$label\""
-        println("Applying label: $firstbornLabel $did")
+        println(Clock.System.now().toString() +"Applying label: $firstbornLabel $did")
 
         val client = OkHttpClient().newBuilder()
             .build()
@@ -98,7 +99,7 @@ class LikeManager(val tokenManager: TokenManager, val labelerTokenManger: TokenM
             } while (cursor?.isNotBlank() == true)
 
         } catch (throwable: Throwable) {
-            println(throwable)
+            println(Clock.System.now().toString() +throwable)
         }
     }
 

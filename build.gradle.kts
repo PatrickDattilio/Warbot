@@ -12,9 +12,8 @@ repositories {
 
 dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("work.socialhub.kbsky:core:0.0.1-SNAPSHOT")
-    implementation("work.socialhub.kbsky:stream:0.0.1-SNAPSHOT")
-
+    implementation("work.socialhub.kbsky:core:0.3.0-SNAPSHOT")
+    implementation("work.socialhub.kbsky:stream:0.3.0-SNAPSHOT")
     implementation("com.squareup.moshi:moshi:1.15.1")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
 

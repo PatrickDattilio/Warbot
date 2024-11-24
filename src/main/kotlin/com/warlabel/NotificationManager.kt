@@ -1,7 +1,6 @@
 package com.warlabel
 
 import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.and
@@ -11,6 +10,7 @@ import work.socialhub.kbsky.BlueskyFactory
 import work.socialhub.kbsky.api.entity.app.bsky.feed.FeedPostRequest
 import work.socialhub.kbsky.api.entity.app.bsky.notification.NotificationListNotificationsRequest
 import work.socialhub.kbsky.api.entity.app.bsky.notification.NotificationUpdateSeenRequest
+import work.socialhub.kbsky.auth.BearerTokenAuthProvider
 import work.socialhub.kbsky.domain.Service
 import work.socialhub.kbsky.model.app.bsky.actor.ActorDefsProfileView
 import work.socialhub.kbsky.model.app.bsky.feed.FeedPostReplyRef
@@ -38,7 +38,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                 .instance(Service.BSKY_SOCIAL.uri)
                 .notification()
                 .listNotifications(
-                    NotificationListNotificationsRequest(labelerTokenManager.getToken()).also {
+                    NotificationListNotificationsRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
                         it.cursor = lastCursor
                     }
                 )
@@ -48,16 +48,17 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
             notifs.data.notifications.filter { !it.isRead && it.reason == "mention" }
                 .forEach { notif ->
                     val feedpost = notif.record.asFeedPost
+                    val text = feedpost?.text?.lowercase()
                     println("${Clock.System.now()}  ${notif.reason} ${notif.author.handle} ${feedpost?.text}")
-                    if (feedpost?.text?.matches(helpRegex) == true) {
+                    if (text?.matches(helpRegex) == true) {
                         handleHelp(labelerTokenManager.getToken(), notif.uri, notif.cid)
-                    } else if (feedpost?.text?.matches(attackRegex) == true) {
+                    } else if (text?.matches(attackRegex) == true) {
                         handleAttack(notif.author, notif.uri, notif.cid)
-                    } else if (feedpost?.text?.matches(statusRegex) == true) {
+                    } else if (text?.matches(statusRegex) == true) {
                         handleStatus(notif.uri, notif.cid)
-                    } else if (feedpost?.text?.matches(legionsRegex) == true) {
+                    } else if (text?.matches(legionsRegex) == true) {
                         handleLegionEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid)
-                    } else if (feedpost?.text?.matches(legionRegex) == true) {
+                    } else if (text?.matches(legionRegex) == true) {
                         val legion = legionRegex.find(feedpost.text!!)?.groupValues?.last() ?: ""
                         if (legion.isBlank()) {
                             handleLegionEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid)
@@ -69,7 +70,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                     BlueskyFactory
                         .instance(Service.BSKY_SOCIAL.uri)
                         .notification()
-                        .updateSeen(NotificationUpdateSeenRequest(labelerTokenManager.getToken()).also {
+                        .updateSeen(NotificationUpdateSeenRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
                             it.seenAt = Clock.System.now().toString()
                         })
                 }
@@ -81,13 +82,18 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
     private fun handleStatus(uri: String, cid: String) {
 
 
-        val imperium = transaction {  Attack.selectAll().where(Attack.isLoyalist.eq(true).and(Attack.damage.greaterEq(1))).toList()}
-        val warmaster =  transaction { Attack.selectAll().where(Attack.isLoyalist.eq(false).and(Attack.damage.greaterEq(1))).toList()}
-        val response = "Fallen Astartes of the Imperium: ${warmaster.size}\nFallen Astartes of the Warmaster: ${imperium.size}"
+        val imperium = transaction {
+            Attack.selectAll().where(Attack.isLoyalist.eq(true).and(Attack.damage.greaterEq(1))).toList()
+        }
+        val warmaster = transaction {
+            Attack.selectAll().where(Attack.isLoyalist.eq(false).and(Attack.damage.greaterEq(1))).toList()
+        }
+        val response =
+            "Fallen Astartes of the Imperium: ${warmaster.size}\nFallen Astartes of the Warmaster: ${imperium.size}"
 
         BlueskyFactory
             .instance(Service.BSKY_SOCIAL.uri)
-            .feed().post(FeedPostRequest(labelerTokenManager.getToken()).also {
+            .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
                 it.text = response
                 it.reply = FeedPostReplyRef().also {
                     it.root = RepoStrongRef(uri, cid)
@@ -106,7 +112,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
         }
         BlueskyFactory
             .instance(Service.BSKY_SOCIAL.uri)
-            .feed().post(FeedPostRequest(labelerTokenManager.getToken()).also {
+            .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
                 it.text = response
                 it.reply = FeedPostReplyRef().also {
                     it.root = RepoStrongRef(uri, cid)
@@ -119,7 +125,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
     private fun handleLegionEmpty(token: String, uri: String, cid: String) {
         BlueskyFactory
             .instance(Service.BSKY_SOCIAL.uri)
-            .feed().post(FeedPostRequest(labelerTokenManager.getToken()).also {
+            .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
                 it.text =
                     "Valid legions are:\nadeptus-custodes\ndark-angels\nemperors-children\niron-warriors\nwhite-scars\nspace-wolves\nimperial-fists\nnight-lords\nblood-angels\niron-hands\nworld-eaters\nultramarines\ndeath-guard\nthousand-sons\nsons-of-horus\nword-bearers\nsalamanders\nraven-guard\nalpha-legion"
                 it.reply = FeedPostReplyRef().also {
@@ -132,7 +138,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
     private fun handleHelp(token: String, uri: String, cid: String) {
         BlueskyFactory
             .instance(Service.BSKY_SOCIAL.uri)
-            .feed().post(FeedPostRequest(labelerTokenManager.getToken()).also {
+            .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
                 it.text =
                     "Commands:\nhelp: this menu\nlegions: list all valid legion tags for legion command\n" +
                             "legion <tag>: list battle brothers of the given legion tag\n" +
@@ -154,7 +160,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
             val result = attacks.handleAttack(author.did, label)
             BlueskyFactory
                 .instance(Service.BSKY_SOCIAL.uri)
-                .feed().post(FeedPostRequest(labelerTokenManager.getToken()).also {
+                .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
                     it.text = result
                     it.reply = FeedPostReplyRef().also {
                         it.root = RepoStrongRef(uri, cid)

@@ -3,8 +3,8 @@ package com.warlabel
 import work.socialhub.kbsky.BlueskyFactory
 import work.socialhub.kbsky.api.entity.com.atproto.server.ServerCreateSessionRequest
 import work.socialhub.kbsky.api.entity.share.AuthRequest
+import work.socialhub.kbsky.auth.BearerTokenAuthProvider
 import work.socialhub.kbsky.domain.Service
-import java.time.Instant
 import kotlin.time.Duration.Companion.minutes
 
 class TokenManager(val username: String, val password: String) {
@@ -25,7 +25,8 @@ class TokenManager(val username: String, val password: String) {
 
     fun fetchRefresh(now: Long): String {
         val refreshed = BlueskyFactory.instance(Service.BSKY_SOCIAL.uri).server().refreshSession(
-            AuthRequest(_refresh!!)
+            AuthRequest(
+                BearerTokenAuthProvider(_refresh!!))
         )
         _token = refreshed.data.accessJwt
         _refresh = refreshed.data.refreshJwt
