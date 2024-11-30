@@ -34,7 +34,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
         legionRegex = Regex("@warlabel.bsky.social legion (.*)")
         legionsRegex = Regex("@warlabel.bsky.social legions")
         statusRegex = Regex("@warlabel.bsky.social status")
-        labelRegex = Regex("@warlabel.bsky.social label (.*)")
+        labelRegex = Regex("@warlabel.bsky.social label(.*)")
     }
 
     fun fetchAndProcess() {
@@ -146,15 +146,31 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
 
 
     private fun handleLabelEmpty(token: String, uri: String, cid: String, did: String) {
-        BlueskyFactory
+        val validLabels = "Valid Labels:\n"
+        var feedPostResponse = BlueskyFactory
             .instance(Service.BSKY_SOCIAL.uri)
             .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
-                it.text = labelUtils.availableLabelString
+                it.text = validLabels+labelUtils.availableLabels[0]
                 it.reply = FeedPostReplyRef().also {
                     it.root = RepoStrongRef(uri, cid)
                     it.parent = RepoStrongRef(uri, cid)
                 }
             })
+        for ( i in 1..labelUtils.availableLabels.size-1) {
+            val group = labelUtils.availableLabels[i]
+
+            val newCid = feedPostResponse.data.cid
+            val newUri = feedPostResponse.data.uri
+            feedPostResponse = BlueskyFactory
+                .instance(Service.BSKY_SOCIAL.uri)
+                .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
+                    it.text = group
+                    it.reply = FeedPostReplyRef().also {
+                        it.root = RepoStrongRef(newUri, newCid)
+                        it.parent = RepoStrongRef(newUri, newCid)
+                    }
+                })
+        }
     }
 
     private fun handleStatus(uri: String, cid: String) {
