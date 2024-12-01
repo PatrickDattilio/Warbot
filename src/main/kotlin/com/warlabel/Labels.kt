@@ -8,10 +8,10 @@ sealed class Label(val label: String) {
         data object Tau : Xenos("tau")
         data object Drukhari : Xenos("drukhari")
         data object Aeldari : Xenos("aeldari")
-        data object Necron: Xenos("necron")
-        data object Tyranid: Xenos("tyranid")
+        data object Necrons: Xenos("necrons")
+        data object Tyranids: Xenos("tyranids")
         data object Kroot: Xenos("kroot")
-        data object Voltann: Xenos("voltann")
+        data object Votann: Xenos("votann")
     }
 
     //Imperium

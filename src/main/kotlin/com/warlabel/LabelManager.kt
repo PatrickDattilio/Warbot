@@ -14,7 +14,7 @@ class LabelManager {
         val client = OkHttpClient().newBuilder()
             .build()
         val requestBody =
-            "{\"subject\":{\"\$type\":\"com.atproto.admin.defs#repoRef\",\"did\":\"$did\"},\"createdBy\":\"did:plc:mpogduvvraozdcbp6w2lafqg\",\"subjectBlobCids\":[],\"event\":{\"\$type\":\"tools.ozone.moderation.defs#modEventLabel\",\"createLabelVals\":[$label],\"negateLabelVals\":[]}}"
+            "{\"subject\":{\"\$type\":\"com.atproto.admin.defs#repoRef\",\"did\":\"$did\"},\"createdBy\":\"did:plc:mpogduvvraozdcbp6w2lafqg\",\"subjectBlobCids\":[],\"event\":{\"\$type\":\"tools.ozone.moderation.defs#modEventLabel\",\"createLabelVals\":[\"$label\"],\"negateLabelVals\":[]}}"
 
         val request = Request.Builder()
             .url("https://verpa.us-west.host.bsky.network/xrpc/tools.ozone.moderation.emitEvent")

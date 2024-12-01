@@ -54,7 +54,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                 .forEach { notif ->
                     val feedpost = notif.record.asFeedPost
                     val text = feedpost?.text?.lowercase()
-                    println("${Clock.System.now()}  ${notif.reason} ${notif.author.handle} ${feedpost?.text}")
+                    println("${Clock.System.now()} ${notif.reason} ${notif.author.handle} ${feedpost?.text}")
                     if (text?.matches(helpRegex) == true) {
                         handleHelp(labelerTokenManager.getToken(), notif.uri, notif.cid)
                     } else if (text?.matches(attackRegex) == true) {
@@ -71,7 +71,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                             handleLegion(labelerTokenManager.getToken(), notif.uri, notif.cid, legion)
                         }
                     } else if (text?.matches(labelRegex) == true) {
-                        val label = labelRegex.find(feedpost.text!!)?.groupValues?.last() ?: ""
+                        val label = labelRegex.find(feedpost.text!!)?.groupValues?.last()?.trim() ?: ""
                         if (label.isBlank()) {
                             handleLabelEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid, notif.author.did)
                         } else {
@@ -127,6 +127,9 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                         }
                     }
                 }
+                else{
+                    println("${Clock.System.now()} $did requested $label but is already labeled")
+                }
             } else {
                 labelManager.applyLabel(
                     did = did,
@@ -140,6 +143,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                         it[tag] = label
                     }
                 }
+                println("${Clock.System.now()} $did labeled $label")
             }
         }
     }
