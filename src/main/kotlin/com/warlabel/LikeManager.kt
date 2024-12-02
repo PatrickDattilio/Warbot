@@ -109,30 +109,31 @@ class LikeManager(val tokenManager: TokenManager, val labelerTokenManger: TokenM
             val userDid = like.actor.did
             val dbUser = transaction { Player.selectAll().where(Player.did.eq(userDid)).firstOrNull() }
 
-            if (dbUser != null) {
-                // We good
-            } else {
-                var hasLabel = false
-                var label = ""
-                user.labels?.forEach { serverLabel ->
-                    if (serverLabel.`val` != "firstborn" && serverLabel.src == "did:plc:mpogduvvraozdcbp6w2lafqg") {
-                        label = serverLabel.`val`!!
-                        hasLabel = true
-                    }
-                }
-                if (!hasLabel) {
-                    label = applyLabel(Random.nextInt(0, 18), userDid, labelerTokenManger.getToken())
-                }
-                transaction {
-                    Player.insert {
-                        it[did] = userDid
-                        it[name] = user.handle
-                        it[tag] = label
-                    }
-                }
+//
+//            if (dbUser != null) {
+//                // We good
+//            } else {
+//                var hasLabel = false
+//                var label = ""
+//                user.labels?.forEach { serverLabel ->
+//                    if (serverLabel.`val` != "firstborn" && serverLabel.src == "did:plc:mpogduvvraozdcbp6w2lafqg") {
+//                        label = serverLabel.`val`!!
+//                        hasLabel = true
+//                    }
+//                }
+//                if (!hasLabel) {
+//                    label = applyLabel(Random.nextInt(0, 18), userDid, labelerTokenManger.getToken())
+//                }
+//                transaction {
+//                    Player.insert {
+//                        it[did] = userDid
+//                        it[name] = user.handle
+//                        it[tag] = label
+//                    }
+//                }
 
 
-            }
+//            }
         }
 
     }

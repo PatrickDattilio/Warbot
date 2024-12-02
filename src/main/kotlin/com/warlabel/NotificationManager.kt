@@ -19,7 +19,7 @@ import work.socialhub.kbsky.model.app.bsky.feed.FeedPostReplyRef
 import work.socialhub.kbsky.model.com.atproto.repo.RepoStrongRef
 
 class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager: TokenManager) {
-    private val legionsRegex: Regex
+    private val listRegex: Regex
     private val legionRegex: Regex
     private val helpRegex: Regex
     private val attackRegex: Regex
@@ -35,7 +35,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
         attackRegex = Regex("@warlabel.bsky.social attack")
         helpRegex = Regex("@warlabel.bsky.social help")
         legionRegex = Regex("@warlabel.bsky.social legion (.*)")
-        legionsRegex = Regex("@warlabel.bsky.social legions")
+        listRegex = Regex("@warlabel.bsky.social list")
         statusRegex = Regex("@warlabel.bsky.social status")
         labelRegex = Regex("@warlabel.bsky.social label")
         addRegex = Regex("@warlabel.bsky.social add(.*)")
@@ -52,9 +52,6 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                         it.cursor = lastCursor
                     }
                 )
-//            if (notifs.data.cursor != null) {
-//                lastCursor = notifs.data.cursor
-//            }
             notifs.data.notifications.filter { !it.isRead && it.reason == "mention" }
                 .forEach { notif ->
                     val feedpost = notif.record.asFeedPost
@@ -66,20 +63,12 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                         handleAttack(notif.author, notif.uri, notif.cid)
                     } else if (text?.matches(statusRegex) == true) {
                         handleStatus(notif.uri, notif.cid)
-                    } else if (text?.matches(legionsRegex) == true) {
-                        handleLegionEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid)
-                    } else if (text?.matches(legionRegex) == true) {
-                        val legion = legionRegex.find(feedpost.text!!)?.groupValues?.last() ?: ""
-                        if (legion.isBlank()) {
-                            handleLegionEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid)
-                        } else {
-                            handleLegion(labelerTokenManager.getToken(), notif.uri, notif.cid, legion)
-                        }
-                    } else if (text?.matches(labelRegex) == true) {
+                    }
+                    else if (text?.matches(labelRegex) == true || text?.matches(listRegex) == true) {
                         handleLabelEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid, notif.author.did)
 
                     } else if (text?.matches(addRegex) == true) {
-                        val label = addRegex.find(feedpost.text!!)?.groupValues?.last()?.trim() ?: ""
+                        val label = addRegex.find(feedpost.text!!)?.groupValues?.last()?.trim()?.lowercase() ?: ""
                         if (label.isBlank()) {
                             handleLabelEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid, notif.author.did)
                         } else {
@@ -93,7 +82,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                             )
                         }
                     } else if (text?.matches(removeRegex) == true) {
-                        val label = labelRegex.find(feedpost.text!!)?.groupValues?.last()?.trim() ?: ""
+                        val label = removeRegex.find(feedpost.text!!)?.groupValues?.last()?.trim()?.lowercase() ?: ""
                         if (label.isBlank()) {
                             handleLabelEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid, notif.author.did)
                         } else {
@@ -125,6 +114,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
         if (validLabel != null) {
             val playerResult = transaction { Player.selectAll().where(Player.did.eq(did)).toList() }
             if (playerResult.isNotEmpty()) {
+                var removed = false
                 playerResult.forEach {
                     val appliedLabel = it[Player.tag]
                     if (appliedLabel == label) {
@@ -137,8 +127,17 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                         transaction {
                             Player.deleteWhere { Player.id eq id }
                         }
+                        removed = true
                         println("${Clock.System.now()} $did removed $label")
                     }
+                }
+                if(!removed){
+                    labelManager.removeLabel(
+                        did = did,
+                        label = validLabel.label,
+                        token = token
+                    )
+                    println("${Clock.System.now()} $did removed $label")
                 }
             }
         }
@@ -172,6 +171,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                             it[tag] = label
                         }
                     }
+                    println("${Clock.System.now()} $did labeled $label")
                 } else {
                     println("${Clock.System.now()} $did requested $label but is already labeled")
                 }
@@ -207,7 +207,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                     it.parent = RepoStrongRef(uri, cid)
                 }
             })
-        for (i in 1..labelUtils.availableLabels.size - 1) {
+        for (i in 1..<labelUtils.availableLabels.size) {
             val group = labelUtils.availableLabels[i]
 
             val newCid = feedPostResponse.data.cid
@@ -247,38 +247,38 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
             })
     }
 
-    private fun handleLegion(token: String, uri: String, cid: String, legion: String) {
-        //get users
-        val playerRows = transaction { Player.selectAll().where(Player.tag.eq(legion)).toList() }
+//    private fun handleLegion(token: String, uri: String, cid: String, legion: String) {
+//        //get users
+//        val playerRows = transaction { Player.selectAll().where(Player.tag.eq(legion)).toList() }
+//
+//        var response = "Battle brothers:\n"
+//        playerRows.forEach { resultRow ->
+//            response += resultRow[Player.name] + "\n"
+//        }
+//        BlueskyFactory
+//            .instance(Service.BSKY_SOCIAL.uri)
+//            .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
+//                it.text = response
+//                it.reply = FeedPostReplyRef().also {
+//                    it.root = RepoStrongRef(uri, cid)
+//                    it.parent = RepoStrongRef(uri, cid)
+//                }
+//            })
+//
+//    }
 
-        var response = "Battle brothers:\n"
-        playerRows.forEach { resultRow ->
-            response += resultRow[Player.name] + "\n"
-        }
-        BlueskyFactory
-            .instance(Service.BSKY_SOCIAL.uri)
-            .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
-                it.text = response
-                it.reply = FeedPostReplyRef().also {
-                    it.root = RepoStrongRef(uri, cid)
-                    it.parent = RepoStrongRef(uri, cid)
-                }
-            })
-
-    }
-
-    private fun handleLegionEmpty(token: String, uri: String, cid: String) {
-        BlueskyFactory
-            .instance(Service.BSKY_SOCIAL.uri)
-            .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
-                it.text =
-                    "Valid legions are:\nadeptus-custodes\ndark-angels\nemperors-children\niron-warriors\nwhite-scars\nspace-wolves\nimperial-fists\nnight-lords\nblood-angels\niron-hands\nworld-eaters\nultramarines\ndeath-guard\nthousand-sons\nsons-of-horus\nword-bearers\nsalamanders\nraven-guard\nalpha-legion"
-                it.reply = FeedPostReplyRef().also {
-                    it.root = RepoStrongRef(uri, cid)
-                    it.parent = RepoStrongRef(uri, cid)
-                }
-            })
-    }
+//    private fun handleLegionEmpty(token: String, uri: String, cid: String) {
+//        BlueskyFactory
+//            .instance(Service.BSKY_SOCIAL.uri)
+//            .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
+//                it.text =
+//                    "Valid legions are:\nadeptus-custodes\ndark-angels\nemperors-children\niron-warriors\nwhite-scars\nspace-wolves\nimperial-fists\nnight-lords\nblood-angels\niron-hands\nworld-eaters\nultramarines\ndeath-guard\nthousand-sons\nsons-of-horus\nword-bearers\nsalamanders\nraven-guard\nalpha-legion"
+//                it.reply = FeedPostReplyRef().also {
+//                    it.root = RepoStrongRef(uri, cid)
+//                    it.parent = RepoStrongRef(uri, cid)
+//                }
+//            })
+//    }
 
     private fun handleHelp(token: String, uri: String, cid: String) {
         BlueskyFactory
@@ -287,8 +287,9 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                 it.text =
                     "Commands:\n" +
                             "add label-name: adds label-name label to your account. label-name must be one of the valid labels \n" +
-                            "label: list all valid labels for add/remove command\n" +
                             "remove labelname: removes labelname label from your account. labelname must be one of the valid labels\n" +
+                            "label: list all valid labels for add/remove command\n" +
+                            "list: list all valid labels for add/remove command\n" +
                             "attack: find an enemy astartes and attack them!\n" +
                             "status: a summary of the war effort! For Glory!"
                 it.reply = FeedPostReplyRef().also {
