@@ -4,6 +4,7 @@ import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -24,6 +25,8 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
     private val attackRegex: Regex
     private val statusRegex: Regex
     private val labelRegex: Regex
+    private val addRegex: Regex
+    private val removeRegex: Regex
     private var lastCursor: String? = null
     private val labelUtils = LabelUtils()
     private val labelManager = LabelManager()
@@ -34,7 +37,9 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
         legionRegex = Regex("@warlabel.bsky.social legion (.*)")
         legionsRegex = Regex("@warlabel.bsky.social legions")
         statusRegex = Regex("@warlabel.bsky.social status")
-        labelRegex = Regex("@warlabel.bsky.social label(.*)")
+        labelRegex = Regex("@warlabel.bsky.social label")
+        addRegex = Regex("@warlabel.bsky.social add(.*)")
+        removeRegex = Regex("@warlabel.bsky.social remove(.*)")
     }
 
     fun fetchAndProcess() {
@@ -71,11 +76,28 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                             handleLegion(labelerTokenManager.getToken(), notif.uri, notif.cid, legion)
                         }
                     } else if (text?.matches(labelRegex) == true) {
-                        val label = labelRegex.find(feedpost.text!!)?.groupValues?.last()?.trim() ?: ""
+                        handleLabelEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid, notif.author.did)
+
+                    } else if (text?.matches(addRegex) == true) {
+                        val label = addRegex.find(feedpost.text!!)?.groupValues?.last()?.trim() ?: ""
                         if (label.isBlank()) {
                             handleLabelEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid, notif.author.did)
                         } else {
                             handleLabel(
+                                labelerTokenManager.getToken(),
+                                notif.uri,
+                                notif.cid,
+                                notif.author.did,
+                                notif.author.handle,
+                                label
+                            )
+                        }
+                    } else if (text?.matches(removeRegex) == true) {
+                        val label = labelRegex.find(feedpost.text!!)?.groupValues?.last()?.trim() ?: ""
+                        if (label.isBlank()) {
+                            handleLabelEmpty(labelerTokenManager.getToken(), notif.uri, notif.cid, notif.author.did)
+                        } else {
+                            handleRemoveLabel(
                                 labelerTokenManager.getToken(),
                                 notif.uri,
                                 notif.cid,
@@ -95,6 +117,30 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                 }
         } catch (throwable: Throwable) {
             println(throwable.toString())
+        }
+    }
+
+    private fun handleRemoveLabel(token: String, uri: String, cid: String, did: String, handle: String, label: String) {
+        val validLabel = labelUtils.getLabel(label)
+        if (validLabel != null) {
+            val playerResult = transaction { Player.selectAll().where(Player.did.eq(did)).toList() }
+            if (playerResult.isNotEmpty()) {
+                playerResult.forEach {
+                    val appliedLabel = it[Player.tag]
+                    if (appliedLabel == label) {
+                        labelManager.removeLabel(
+                            did = did,
+                            label = validLabel.label,
+                            token = token
+                        )
+                        val id = it[Player.id]
+                        transaction {
+                            Player.deleteWhere { Player.id eq id }
+                        }
+                        println("${Clock.System.now()} $did removed $label")
+                    }
+                }
+            }
         }
     }
 
@@ -126,8 +172,7 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                             it[tag] = label
                         }
                     }
-                }
-                else{
+                } else {
                     println("${Clock.System.now()} $did requested $label but is already labeled")
                 }
             } else {
@@ -145,6 +190,8 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
                 }
                 println("${Clock.System.now()} $did labeled $label")
             }
+        } else {
+            handleLabelEmpty(token, uri, cid, did)
         }
     }
 
@@ -154,13 +201,13 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
         var feedPostResponse = BlueskyFactory
             .instance(Service.BSKY_SOCIAL.uri)
             .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
-                it.text = validLabels+labelUtils.availableLabels[0]
+                it.text = validLabels + labelUtils.availableLabels[0]
                 it.reply = FeedPostReplyRef().also {
                     it.root = RepoStrongRef(uri, cid)
                     it.parent = RepoStrongRef(uri, cid)
                 }
             })
-        for ( i in 1..labelUtils.availableLabels.size-1) {
+        for (i in 1..labelUtils.availableLabels.size - 1) {
             val group = labelUtils.availableLabels[i]
 
             val newCid = feedPostResponse.data.cid
@@ -238,8 +285,10 @@ class NotificationManager(val tokenManger: TokenManager, val labelerTokenManager
             .instance(Service.BSKY_SOCIAL.uri)
             .feed().post(FeedPostRequest(BearerTokenAuthProvider(labelerTokenManager.getToken())).also {
                 it.text =
-                    "Commands:\nhelp: this menu\nlegions: list all valid legion tags for legion command\n" +
-                            "legion <tag>: list battle brothers of the given legion tag\n" +
+                    "Commands:\n" +
+                            "add label-name: adds label-name label to your account. label-name must be one of the valid labels \n" +
+                            "label: list all valid labels for add/remove command\n" +
+                            "remove labelname: removes labelname label from your account. labelname must be one of the valid labels\n" +
                             "attack: find an enemy astartes and attack them!\n" +
                             "status: a summary of the war effort! For Glory!"
                 it.reply = FeedPostReplyRef().also {

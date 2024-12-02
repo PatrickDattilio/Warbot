@@ -7,7 +7,7 @@ import org.jetbrains.exposed.sql.Database
 fun main() {
     val apiSecret= System.getenv("WLABELAPI")
     val warlabelSecret = System.getenv("WARLABEL")
-    println(warlabelSecret)
+    println("Secrets Set Successfully")
     val tokenManager = TokenManager("wlabelapi.bsky.social", apiSecret)
     val labelerTokenManger = TokenManager("warlabel.bsky.social", warlabelSecret)
     val notificationManager = NotificationManager(tokenManager, labelerTokenManger)
